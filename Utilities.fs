@@ -30,24 +30,26 @@ module Utilities =
             PersonNode(person, updatedChildren)
         | Empty -> Empty
 
-    let applyConditionToChildren conditionFunc children =
-        List.map (fun child ->
-            match child with
-            | PersonNode(childPerson, childChildren) -> PersonNode(conditionFunc childPerson, childChildren)
-            | Empty -> Empty
-        ) children
+    let createStatusChanger condition status =
+        (fun person ->
+            if condition person then
+                { person with Status = status }
+            else
+                person)
 
     let rec infectZombieA treeToUpdate origin isChild =
-        let infectionCondition person =
-            if (person = origin && person.Status <> Status.VaccinA1) || (isChild && person.Status <> Status.VaccinA1) then
-                { person with Status = Status.ZombieA }
-            else
-                person
-
+        let statusChanger = createStatusChanger (fun person -> 
+            (person = origin && person.Status <> Status.VaccinA1) || (isChild && person.Status <> Status.VaccinA1)) ZombieA
+        
         match treeToUpdate with
         | PersonNode(person, children) ->
-            let updatedChildren = applyConditionToChildren infectionCondition children
-            PersonNode(infectionCondition person, updatedChildren)
+            let updatedChildren = 
+                children |> List.map (fun child -> 
+                    match child with
+                    | PersonNode(childPerson, childChildren) ->
+                        infectZombieA (PersonNode(childPerson, childChildren)) origin (person = origin || isChild)
+                    | Empty -> Empty)
+            PersonNode(statusChanger person, updatedChildren)
         | Empty -> Empty
 
     let rec infectZombie32 tree =
