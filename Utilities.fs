@@ -10,14 +10,26 @@ module Utilities =
                 printSocialTree child (indent + "_")
         | Empty -> ()
 
-    let rec findPathToOrigin tree origin path =
+    let memoize f =
+        let cache = System.Collections.Generic.Dictionary<_, _>()
+        (fun x ->
+            if cache.ContainsKey(x) then
+                cache.[x]
+            else
+                let result = f x
+                cache.[x] <- result
+                result)
+
+    let rec findPathToOrigin (tree, origin, path) = 
         match tree with
         | PersonNode(person, children) when person = origin -> Some (person :: path)
         | PersonNode(person, children) ->
             children
-            |> List.map (fun child -> findPathToOrigin child origin (person :: path))
+            |> List.map (fun child -> findPathToOrigin (child, origin, person :: path))
             |> List.tryPick id
         | Empty -> None
+        
+    let findPathToOriginMemoized = memoize findPathToOrigin
 
     let rec infectAncestors tree path =
         match tree with
@@ -91,7 +103,7 @@ module Utilities =
         match variant with
         | Status.ZombieA -> infectZombieA tree origin false
         | Status.ZombieB ->
-            match findPathToOrigin tree origin [] with
+            match findPathToOriginMemoized (tree, origin, []) with
             | Some path -> infectAncestors tree path
             | None -> tree
         | Status.Zombie32 -> infectZombie32 tree
